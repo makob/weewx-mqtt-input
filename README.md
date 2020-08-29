@@ -1,23 +1,34 @@
 # weewx-mqtt-input
-MQTT input driver for the WeeWX weather station.
+
+A MQTT input driver for the [WeeWX](http://weewx.com) weather station.
 
 This simple input driver connects to MQTT, subscribes to the
-configured topics and then pushes any published values to WeeWX.
+configured topics and then adds published values from MQTT to WeeWX.
 
-Note: Only Python3 is supported, so you need to run at least WeeWX version 4.x.
+Please note a couple of limitations (all in the name of simplicity):
+
+* Only Python3 is supported. You need to run at least WeeWX version 4.x.
+* Only a single value per MQTT topic -- just the way MQTT is supposed
+  to be used.
+* TLS is not (yet) supported
 
 ## Installation
 
-Use the standard WeeWX installer like so
+For released versions of weewx-mqtt-input, use the standard WeeWX
+installer like so
 
 ```bin/wee_extension --install=weewx-mqtt-input.zip```
 
-Update the WeeWX configuration and select the new driver:
+then update the WeeWX configuration and select the new driver:
 
 ```bin/wee_config --reconfigure```
 
-Add your configured topics to the `weewc.conf` file and finally
-restart WeeWX (`systemctl retart weewx.service` or similar).
+Edit the `weewx.conf` file to set the address and port to point to
+your MQTT broker and add your MQTT topics. Finally, restart WeeWX
+(`systemctl restart weewx.service` or similar).
+
+Alternatively you can simply copy the weewx-mqtt-input.py file to
+bin/user and configure the driver manually.
 
 ## Configuration
 
@@ -37,10 +48,10 @@ need to supply the topic itself and the WeeWX `name` it maps to.
 	timeout = 10                    # (advanced) MQTT connection timeout
 	poll = 1                        # (advanced) MQTT poll timeout
 
-	[[the/topc/name]]               # MQTT topic name (mandatory)
-		name = weewxName        # WeeWX field we map the output to (mandatory)
+	[[some/topic/name]]             # MQTT topic name (mandatory)
+		name = weewxName        # WeeWX field to map the output to (mandatory)
 		unit = US	        # unit of measurement (US/METRIC/METRICWX)
-		calc_delta = True       # (advanced) measurement is a 'total' so calculate delta
+		calc_delta = False      # (advanced) measurement is a 'total' so calculate delta
 		scale = 1.0             # (advanced) scale measurement by this much
 		offset = 0.0            # (advanced) add this to measurement after scaling
 

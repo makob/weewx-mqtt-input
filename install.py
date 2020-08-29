@@ -42,7 +42,7 @@ class WeewxMqttInputInstaller(ExtensionInstaller):
                     'port':1883,
                     'some/topic/name':
                     {
-                        'name':'weewx-field',
+                        'name':'weewxName',
                         'unit':'US',
                         'calc_delta':'False',
                         'scale':1.0,
