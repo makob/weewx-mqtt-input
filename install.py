@@ -50,5 +50,5 @@ class WeewxMqttInputInstaller(ExtensionInstaller):
                     },
                 },
             },
-            files=[('bin/user', ['./weewx-mqtt-input.py'])]
+            files=[('bin/user', ['bin/user/weewx-mqtt-input.py'])]
         )

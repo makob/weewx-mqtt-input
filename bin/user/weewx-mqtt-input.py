@@ -39,7 +39,7 @@ class Topic():
         self.updated = False
         self.last_total = None
 
-        if not ('name' in config):
+        if not 'name' in config:
             msg = "topic '{}' has no 'name' configured".format(topic)
             raise ValueError(msg)
 
@@ -59,7 +59,7 @@ class Topic():
         else:
             self.unit = weewx.US
 
-        if 'calc_delta' in config:
+        if 'calc_delta' in config and config['calc_delta'].lower() == "true":
             self.calc_delta = True
         else:
             self.calc_delta = False
@@ -129,7 +129,7 @@ class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
         self.poll = int(config_dict.get('poll', 1.0))
         self.run = True
 
-        # Keys with values that are dicts are out topic configuration
+        # Keys with values that are sections are our topic configuration
         self.topics = []
         for key in config_dict:
             if type(config_dict[key]) is configobj.Section:
@@ -153,9 +153,9 @@ class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
             log.info("connected")
             for t in self.topics:
                 client.subscribe(t.topic)
-                log.info("subscribing to topic '{}'".format(t.topic))
+                log.info("subscribing to topic '{}' -> weewx '{}'".format(t.topic, t.name))
         elif self.run:
-            log.info("connection failure code {} - retrying...".format(rc))
+            log.info("connection failed ({}) - retrying...".format(rc))
             self.client.connect(self.address, self.port, self.timeout)
 
     # MQTT callback for message publish
@@ -215,10 +215,12 @@ if __name__ == "__main__":
 
     driver = WeewxMqttInputDriver()
     driver.topics = [
-        Topic("testing1", { "name":"map_to_this" } ),
-        Topic("testing2", { "name":"anotherMappedName", "unit":"US" } ),
-        Topic("testing3", { "name":"anotherMappedName", "unit":"METRIC" } ),
-        Topic("testing4", { "name":"yet_another", "unit":"METRICWX" } ),
+        Topic("testing1", { "name":"1_simple" } ),
+        Topic("testing2", { "name":"2_us", "unit":"US" } ),
+        Topic("testing3", { "name":"3_metric", "unit":"METRIC" } ),
+        Topic("testing4", { "name":"4_metrixwx", "unit":"METRICWX" } ),
+        Topic("testing5", { "name":"5_scale_offset", "scale":2.0, "offset":-0.25 } ),
+        Topic("testing6", { "name":"6_calc_delta", "calc_delta":"True" } ),
     ]
     for packet in driver.genLoopPackets():
         print(weeutil.weeutil.timestamp_to_string(packet['dateTime']), packet)
