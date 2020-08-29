@@ -8,9 +8,9 @@ configured topics and then adds published values from MQTT to WeeWX.
 Please note a couple of limitations (all in the name of simplicity):
 
 * Only Python3 is supported. You need to run at least WeeWX version 4.x.
-* Only a single value per MQTT topic -- just the way MQTT is supposed
-  to be used.
-* TLS is not (yet) supported
+* Only a single value per MQTT topic is supported -- just the way MQTT
+  is supposed to be used.
+ * TLS is not (yet) supported.
 
 ## Installation
 
@@ -60,7 +60,7 @@ need to supply the topic itself and the WeeWX `name` it maps to.
 
 The `calc_delta` functionality may be needed for rain
 measurements. For example, my Renkforce WH2600 _dailyrainin_ should
-be mapped WeeWx _rain_ with `calc_delta = True`.
+be mapped WeeWX _rain_ with `calc_delta = True`.
 
 `scale` and `offset` are applied after the delta calculation (if any).
 The driver will report `(value * scale) + offset` to WeeWX.
