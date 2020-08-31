@@ -23,7 +23,8 @@ import paho.mqtt.client as mqtt
 import configobj
 
 DRIVER_NAME = 'WeewxMqttInput'
-DRIVER_VERSION = "0.1"
+DRIVER_VERSION = "0.2"
+GEN_PACKET_SLEEP = 1.0
 
 log = logging.getLogger(__name__)
 
@@ -76,7 +77,6 @@ class Topic():
 
     # Store a new measurement
     def store(self, value):
-        self.updateTime = int(time.time())
         self.value = value
         self.updated = True
 
@@ -98,20 +98,19 @@ class Topic():
             self.last_total = new_total
             return delta
 
-    # Read measurement. Returns None if not updated
+    # Read measurement
     def read(self):
-        if self.updated:
-            val = float(self.value)
-            self.updated = False
-
-            if self.calc_delta:
-                val = self.delta(val)
-                if not val:
-                    return None
-
-            return val * self.scale + self.offset
-        else:
+        if not self.value:
             return None
+
+        val = float(self.value)
+
+        if self.calc_delta:
+            val = self.delta(val)
+            if not val:
+                return None
+
+        return val * self.scale + self.offset
 
     # Pretty printer
     def __str__(self):
@@ -126,12 +125,11 @@ class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
         self.address = str(config_dict.get('address', 'localhost'))
         self.port = int(config_dict.get('port', 1883))
         self.timeout = int(config_dict.get('timeout', 10))
-        self.poll = int(config_dict.get('poll', 1.0))
         self.run = True
-
-        # Keys with values that are sections are our topic configuration
         self.topics = []
+
         for key in config_dict:
+            # Keys with values that are sections are our topic configuration
             if type(config_dict[key]) is configobj.Section:
                 topic = Topic(key, config_dict[key])
                 self.topics.append(topic)
@@ -146,6 +144,14 @@ class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
         self.client.on_message = self.on_message
         self.client.on_disconnect = self.on_disconnect
         self.client.connect(self.address, self.port, self.timeout)
+        self.client.loop_start()
+
+    # Generator to return all updated topics of a specific unit
+    def getUpdatedTopics(self, unit):
+        for t in self.topics:
+            if t.unit == unit and t.updated:
+                t.updated = False
+                yield t
 
     # MQTT callback for connection ack
     def on_connect(self, client, userdata, flags, rc):
@@ -178,26 +184,32 @@ class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
             log.info("reconnecting to {}:{}...".format(self.address, self.port))
             self.client.connect(self.address, self.port, self.timeout)
 
-    # WeeWX generator where we return the measurements
+    # WeeWX generator where we return the measurements. We iterate all
+    # topics, collecting all measurements of the same unit-type. This
+    # is apparently needed to get windDir working (which must go
+    # together with windSpeed)
     def genLoopPackets(self):
         while True:
-            # Scan all topics. We only send stuff if we have read new data
-            for t in self.topics:
-                value = t.read()
-                if value:
-                    packet = {'dateTime': t.updateTime,
-                               'usUnits': t.unit,
-                               t.name: value}
-                    yield packet
+            for u in [weewx.US, weewx.METRIC, weewx.METRICWX]:
+                found = False
+                packet = {'dateTime': time.time(),
+                          'usUnits':u}
 
-            # Use PAHO's poll timeout as our delay function
-            self.client.loop(self.poll)
+                # Collect all updated topics with the same unit-type
+                for t in self.getUpdatedTopics(u):
+                    packet[t.name] = t.read()
+                    found = True
+
+                # Return results if any
+                if found:
+                    yield packet
 
     # WeeWX shutdown
     def closePort(self):
         self.run = False
         log.info("disconnecting from {}:{}".format(self.address, self.port))
         self.client.disconnect()
+        self.client.loop_stop()
 
     # WeeWX name thingy
     @property

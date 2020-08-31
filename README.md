@@ -46,7 +46,6 @@ need to supply the topic itself and the WeeWX `name` it maps to.
 	address = localhost             # hostname/IP of your MQTT broker
 	port = 1883                     # port number for your MQTT broker
 	timeout = 10                    # (advanced) MQTT connection timeout
-	poll = 1                        # (advanced) MQTT poll timeout
 
 	[[some/topic/name]]             # MQTT topic name (mandatory)
 		name = weewxName        # WeeWX field to map the output to (mandatory)
