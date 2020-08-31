@@ -6,7 +6,7 @@ MYDIR=`dirname $0`
 pushd ${MYDIR} >/dev/null
 
 # Prepare
-TAG=`git tag -l|sort -V|head -n 1`
+TAG=`git tag -l|sort -V|tail -n 1`
 WORKDIR=`mktemp -d`
 PACKAGE=weewx-mqtt-input
 STAGE=${WORKDIR}/${PACKAGE}
