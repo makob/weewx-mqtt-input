@@ -203,6 +203,8 @@ class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
                 # Return results if any
                 if found:
                     yield packet
+            # avoid 100% cpu utilization :)
+            time.sleep(1)
 
     # WeeWX shutdown
     def closePort(self):
