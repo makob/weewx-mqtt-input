@@ -24,15 +24,17 @@ import configobj
 
 DRIVER_NAME = 'WeewxMqttInput'
 DRIVER_VERSION = "0.2"
-GEN_PACKET_SLEEP = 1.0
+POLL_INTERVAL = 1.0
 
 log = logging.getLogger(__name__)
 
 def loader(config_dict, engine):
     return WeewxMqttInputDriver(**config_dict[DRIVER_NAME])
 
-# Topic helper class
+
 class Topic():
+    """MQTT topic helper class"""
+
     # The 'config' is assumed to be 'config_dict[topic]'
     def __init__(self, topic, config):
         self.topic = topic
@@ -98,12 +100,13 @@ class Topic():
             self.last_total = new_total
             return delta
 
-    # Read measurement
+    # Read measurement and mark as not-updated.
     def read(self):
         if not self.value:
             return None
 
         val = float(self.value)
+        self.updated = False
 
         if self.calc_delta:
             val = self.delta(val)
@@ -114,8 +117,8 @@ class Topic():
 
     # Pretty printer
     def __str__(self):
-        return "topic={} name={} unit={} calc_delta={} scale={} offset={}".format(
-            self.topic, self.name, self.unit, self.calc_delta, self.scale, self.offset)
+        return "topic={} name={} unit={} calc_delta={} scale={} offset={} last_total={}".format(
+            self.topic, self.name, self.unit, self.calc_delta, self.scale, self.offset, self.last_total)
 
 class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
     """WeeWX MQTT Input driver"""
@@ -132,10 +135,8 @@ class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
             # Keys with values that are sections are our topic configuration
             if type(config_dict[key]) is configobj.Section:
                 topic = Topic(key, config_dict[key])
+                log.debug("configured topic: {}".format(topic))
                 self.topics.append(topic)
-
-        for t in self.topics:
-            log.debug("configured topic: {}".format(t))
 
         # Spin up the MQTT client
         log.info("connecting to {}:{}...".format(self.address, self.port))
@@ -150,7 +151,6 @@ class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
     def getUpdatedTopics(self, unit):
         for t in self.topics:
             if t.unit == unit and t.updated:
-                t.updated = False
                 yield t
 
     # MQTT callback for connection ack
@@ -203,6 +203,9 @@ class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
                 # Return results if any
                 if found:
                     yield packet
+
+            # avoid 100% cpu utilization :)
+            time.sleep(POLL_INTERVAL)
 
     # WeeWX shutdown
     def closePort(self):
