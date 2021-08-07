@@ -19,20 +19,23 @@
 import logging
 import time
 import weewx.drivers
+import weewx.engine
 import paho.mqtt.client as mqtt
 import configobj
 
 DRIVER_NAME = 'WeewxMqttInput'
 DRIVER_VERSION = "0.2"
-GEN_PACKET_SLEEP = 1.0
+POLL_INTERVAL = 1.0
 
 log = logging.getLogger(__name__)
 
 def loader(config_dict, engine):
     return WeewxMqttInputDriver(**config_dict[DRIVER_NAME])
 
-# Topic helper class
+
 class Topic():
+    """MQTT topic helper class"""
+
     # The 'config' is assumed to be 'config_dict[topic]'
     def __init__(self, topic, config):
         self.topic = topic
@@ -98,12 +101,13 @@ class Topic():
             self.last_total = new_total
             return delta
 
-    # Read measurement
+    # Read measurement and mark as not-updated.
     def read(self):
         if not self.value:
             return None
 
         val = float(self.value)
+        self.updated = False
 
         if self.calc_delta:
             val = self.delta(val)
@@ -114,8 +118,8 @@ class Topic():
 
     # Pretty printer
     def __str__(self):
-        return "topic={} name={} unit={} calc_delta={} scale={} offset={}".format(
-            self.topic, self.name, self.unit, self.calc_delta, self.scale, self.offset)
+        return "topic={} name={} unit={} calc_delta={} scale={} offset={} last_total={}".format(
+            self.topic, self.name, self.unit, self.calc_delta, self.scale, self.offset, self.last_total)
 
 class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
     """WeeWX MQTT Input driver"""
@@ -125,6 +129,8 @@ class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
         self.address = str(config_dict.get('address', 'localhost'))
         self.port = int(config_dict.get('port', 1883))
         self.timeout = int(config_dict.get('timeout', 10))
+        self.username = config_dict.get('username', None)
+        self.password = config_dict.get('password', None)
         self.run = True
         self.topics = []
 
@@ -132,10 +138,8 @@ class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
             # Keys with values that are sections are our topic configuration
             if type(config_dict[key]) is configobj.Section:
                 topic = Topic(key, config_dict[key])
+                log.debug("configured topic: {}".format(topic))
                 self.topics.append(topic)
-
-        for t in self.topics:
-            log.debug("configured topic: {}".format(t))
 
         # Spin up the MQTT client
         log.info("connecting to {}:{}...".format(self.address, self.port))
@@ -143,14 +147,18 @@ class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
         self.client.on_disconnect = self.on_disconnect
-        self.client.connect(self.address, self.port, self.timeout)
-        self.client.loop_start()
+        try:
+            if self.username:
+                self.client.username_pw_set(self.username, self.password)
+            self.client.connect(self.address, self.port, self.timeout)
+            self.client.loop_start()
+        except:
+            raise weewx.WeeWxIOError("Fatal error connecting to mqtt")
 
     # Generator to return all updated topics of a specific unit
     def getUpdatedTopics(self, unit):
         for t in self.topics:
             if t.unit == unit and t.updated:
-                t.updated = False
                 yield t
 
     # MQTT callback for connection ack
@@ -182,7 +190,10 @@ class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
         log.info("disconnected, result code {}".format(rc))
         if self.run:
             log.info("reconnecting to {}:{}...".format(self.address, self.port))
-            self.client.connect(self.address, self.port, self.timeout)
+            try:
+                self.client.connect(self.address, self.port, self.timeout)
+            except:
+                raise weewx.WeeWxIOError("Fatal error connecting to mqtt")
 
     # WeeWX generator where we return the measurements. We iterate all
     # topics, collecting all measurements of the same unit-type. This
@@ -203,8 +214,9 @@ class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
                 # Return results if any
                 if found:
                     yield packet
+
             # avoid 100% cpu utilization :)
-            time.sleep(1)
+            time.sleep(POLL_INTERVAL)
 
     # WeeWX shutdown
     def closePort(self):
