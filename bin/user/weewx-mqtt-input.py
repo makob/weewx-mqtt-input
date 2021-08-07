@@ -19,6 +19,7 @@
 import logging
 import time
 import weewx.drivers
+import weewx.engine
 import paho.mqtt.client as mqtt
 import configobj
 
@@ -128,6 +129,8 @@ class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
         self.address = str(config_dict.get('address', 'localhost'))
         self.port = int(config_dict.get('port', 1883))
         self.timeout = int(config_dict.get('timeout', 10))
+        self.username = config_dict.get('username', None)
+        self.password = config_dict.get('password', None)
         self.run = True
         self.topics = []
 
@@ -144,8 +147,13 @@ class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
         self.client.on_disconnect = self.on_disconnect
-        self.client.connect(self.address, self.port, self.timeout)
-        self.client.loop_start()
+        try:
+            if self.username:
+                self.client.username_pw_set(self.username, self.password)
+            self.client.connect(self.address, self.port, self.timeout)
+            self.client.loop_start()
+        except:
+            raise weewx.WeeWxIOError("Fatal error connecting to mqtt")
 
     # Generator to return all updated topics of a specific unit
     def getUpdatedTopics(self, unit):
@@ -182,7 +190,10 @@ class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
         log.info("disconnected, result code {}".format(rc))
         if self.run:
             log.info("reconnecting to {}:{}...".format(self.address, self.port))
-            self.client.connect(self.address, self.port, self.timeout)
+            try:
+                self.client.connect(self.address, self.port, self.timeout)
+            except:
+                raise weewx.WeeWxIOError("Fatal error connecting to mqtt")
 
     # WeeWX generator where we return the measurements. We iterate all
     # topics, collecting all measurements of the same unit-type. This
@@ -203,8 +214,6 @@ class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
                 # Return results if any
                 if found:
                     yield packet
-            # avoid 100% cpu utilization :)
-            time.sleep(1)
 
             # avoid 100% cpu utilization :)
             time.sleep(POLL_INTERVAL)
