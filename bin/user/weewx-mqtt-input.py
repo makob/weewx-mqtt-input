@@ -153,7 +153,7 @@ class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
             self.client.connect(self.address, self.port, self.timeout)
             self.client.loop_start()
         except:
-            raise weewx.WeeWxIOError("Fatal error connecting to mqtt")
+            raise weewx.HardwareError("Fatal error connecting to mqtt")
 
     # Generator to return all updated topics of a specific unit
     def getUpdatedTopics(self, unit):
@@ -193,7 +193,7 @@ class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
             try:
                 self.client.connect(self.address, self.port, self.timeout)
             except:
-                raise weewx.WeeWxIOError("Fatal error connecting to mqtt")
+                raise weewx.HardwareError("Fatal error connecting to mqtt")
 
     # WeeWX generator where we return the measurements. We iterate all
     # topics, collecting all measurements of the same unit-type. This
