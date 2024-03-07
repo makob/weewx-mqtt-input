@@ -146,7 +146,6 @@ class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
         self.client = mqtt.Client()
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
-        self.client.on_disconnect = self.on_disconnect
         try:
             if self.username:
                 self.client.username_pw_set(self.username, self.password)
@@ -184,16 +183,6 @@ class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
                     topic, value, t.name))
                 return
         log.error("unknown topic '{}' value '{}'".format(topic, value))
-
-    # MQTT callback for disconnects
-    def on_disconnect(self, client, userdata, rc):
-        log.info("disconnected, result code {}".format(rc))
-        if self.run:
-            log.info("reconnecting to {}:{}...".format(self.address, self.port))
-            try:
-                self.client.connect(self.address, self.port, self.timeout)
-            except:
-                raise weewx.WeeWxIOError("Fatal error connecting to mqtt")
 
     # WeeWX generator where we return the measurements. We iterate all
     # topics, collecting all measurements of the same unit-type. This
