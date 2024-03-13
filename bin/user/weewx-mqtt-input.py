@@ -24,7 +24,7 @@ import paho.mqtt.client as mqtt
 import configobj
 
 DRIVER_NAME = 'WeewxMqttInput'
-DRIVER_VERSION = "0.2"
+DRIVER_VERSION = "0.6"
 POLL_INTERVAL = 1.0
 
 log = logging.getLogger(__name__)
