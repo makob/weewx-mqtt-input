@@ -24,7 +24,7 @@ import paho.mqtt.client as mqtt
 import configobj
 
 DRIVER_NAME = 'WeewxMqttInput'
-DRIVER_VERSION = "0.2"
+DRIVER_VERSION = "0.6"
 POLL_INTERVAL = 1.0
 
 log = logging.getLogger(__name__)
@@ -146,14 +146,13 @@ class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
         self.client = mqtt.Client()
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
-        self.client.on_disconnect = self.on_disconnect
         try:
             if self.username:
                 self.client.username_pw_set(self.username, self.password)
             self.client.connect(self.address, self.port, self.timeout)
             self.client.loop_start()
         except:
-            raise weewx.HardwareError("Fatal error connecting to mqtt")
+            raise weewx.WeeWxIOError("Fatal error connecting to mqtt")
 
     # Generator to return all updated topics of a specific unit
     def getUpdatedTopics(self, unit):
@@ -184,16 +183,6 @@ class WeewxMqttInputDriver(weewx.drivers.AbstractDevice):
                     topic, value, t.name))
                 return
         log.error("unknown topic '{}' value '{}'".format(topic, value))
-
-    # MQTT callback for disconnects
-    def on_disconnect(self, client, userdata, rc):
-        log.info("disconnected, result code {}".format(rc))
-        if self.run:
-            log.info("reconnecting to {}:{}...".format(self.address, self.port))
-            try:
-                self.client.connect(self.address, self.port, self.timeout)
-            except:
-                raise weewx.HardwareError("Fatal error connecting to mqtt")
 
     # WeeWX generator where we return the measurements. We iterate all
     # topics, collecting all measurements of the same unit-type. This
