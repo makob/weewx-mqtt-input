@@ -8,6 +8,7 @@ configured topics and then adds published values from MQTT to WeeWX.
 Please note the following limitations (all in the name of simplicity):
 
 * Only Python3 is supported. You need to run at least WeeWX version 4.x.
+  The rest of this file assumes you're on WeeWX version 5.
 * Only a single value per MQTT topic is supported -- just the way MQTT
   is supposed to be used.
 * TLS is not (yet) supported.
@@ -17,18 +18,18 @@ Please note the following limitations (all in the name of simplicity):
 For released versions of weewx-mqtt-input, use the standard WeeWX
 installer like so
 
-```bin/wee_extension --install weewx-mqtt-input.zip```
+```weectl extension install weewx-mqtt-input.zip```
 
 then update the WeeWX configuration and select the new driver:
 
-```bin/wee_config --reconfigure```
+```weectl station reconfigure```
 
 Edit the `weewx.conf` file to set the address and port to point to
 your MQTT broker and add your MQTT topics. Finally, restart WeeWX
-(`systemctl restart weewx4.service` or similar).
+(`systemctl restart weewx5.service` or similar).
 
 Alternatively you can simply copy the weewx-mqtt-input.py file to
-bin/user and configure the driver manually.
+`weewx_data/bin/user` and configure the driver manually.
 
 ## Configuration
 
