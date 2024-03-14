@@ -25,7 +25,7 @@ def loader():
 class WeewxMqttInputInstaller(ExtensionInstaller):
     def __init__(self):
         super(WeewxMqttInputInstaller, self).__init__(
-            version="0.2",
+            version="1.0",
             name='weewx-mqtt-input',
             description='WeeWX MQTT Input driver',
             author="Jakob Butler",
